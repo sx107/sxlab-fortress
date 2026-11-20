@@ -1,0 +1,57 @@
+/*
+ * lfo_timer.c
+ *
+ *  Created on: Feb 24, 2024
+ *      Author: Sx107
+ */
+
+#include <lfo_timer.h>
+#include <lfo1.h>
+#include <lfo2.h>
+
+
+void lfo_timer_init() {
+	RCC->APB2ENR |= RCC_APB2ENR_TIM8EN;
+	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
+
+	MODIFY_REG(GPIOC->MODER, GPIO_MODER_MODER6_Msk, (0b10) << GPIO_MODER_MODER6_Pos);
+	MODIFY_REG(GPIOC->MODER, GPIO_MODER_MODER7_Msk, (0b10) << GPIO_MODER_MODER7_Pos);
+	MODIFY_REG(GPIOC->MODER, GPIO_MODER_MODER8_Msk, (0b10) << GPIO_MODER_MODER8_Pos);
+	MODIFY_REG(GPIOC->MODER, GPIO_MODER_MODER9_Msk, (0b10) << GPIO_MODER_MODER9_Pos);
+
+	GPIOC->AFR[0] |= (4 << GPIO_AFRL_AFRL6_Pos) | (4 << GPIO_AFRL_AFRL7_Pos);
+	GPIOC->AFR[1] |= (4 << GPIO_AFRH_AFRH0_Pos) | (4 << GPIO_AFRH_AFRH1_Pos);
+
+	NVIC_SetPriority(TIM8_UP_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 1, 2));
+	NVIC_EnableIRQ(TIM8_UP_IRQn);
+
+	MODIFY_REG(TIM8->CR1, TIM_CR1_CMS_Msk | TIM_CR1_CKD_Msk | TIM_CR1_DIR_Msk, TIM_CR1_ARPE);
+
+	TIM8->PSC = 0;
+	TIM8->ARR = 1023;
+	TIM8->CCR1 = 1023;
+	TIM8->CCR2 = 1023;
+	TIM8->CCR3 = 1023;
+	TIM8->CCR4 = 1023;
+
+	TIM8->RCR = 3;
+
+	TIM8->CCER |= TIM_CCER_CC1E | TIM_CCER_CC2E | TIM_CCER_CC3E | TIM_CCER_CC4E;
+	TIM8->BDTR |= TIM_BDTR_MOE;
+    TIM8->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC2M_2 | TIM_CCMR1_OC2M_1;
+    TIM8->CCMR2 |= TIM_CCMR2_OC3M_2 | TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC4M_2 | TIM_CCMR2_OC4M_1;
+
+    TIM8->DIER |= TIM_DIER_UIE;
+	TIM8->CR1 |= TIM_CR1_CEN;
+
+	TIM8->EGR |= TIM_EGR_UG;
+}
+
+uint16_t x;
+
+void TIM8_UP_IRQHandler(void)
+{
+	lfo1_process();
+	lfo2_process();
+	TIM8->SR &= ~TIM_SR_UIF;
+}
